@@ -36,19 +36,36 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError('Camera API is not supported in this browser. Note: Mobile browsers require HTTPS to access the camera.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { 
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false,
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Ensure the video plays
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(e => console.error("Error playing video:", e));
+        };
         setIsCameraActive(true);
         setError(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error accessing camera:', err);
-      setError('Could not access camera. Please ensure you have given permission.');
+      if (err.name === 'NotAllowedError') {
+        setError('Camera permission denied. Please reset permissions in your browser settings.');
+      } else {
+        setError(`Error: ${err.message || 'Could not access camera.'}`);
+      }
     }
   };
 
@@ -150,6 +167,7 @@ function App() {
                 ref={videoRef} 
                 autoPlay 
                 playsInline 
+                muted
                 className="absolute inset-0 w-full h-full object-cover"
               />
               {/* Aiming Reticle */}
